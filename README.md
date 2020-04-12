@@ -10,7 +10,7 @@ e.g.: "r:21:20,40,20,40,20,40,20,40,20,40,20,40,20,40,20,40,20,40,40,20,40"
 **The PUSLE LENGTHs are in units of 10us!!**
 
 TODOs:
-***  Serial protocol implementation for transmitting: receiving Pulse buffers from the serial and transmitting these
-***  Code in the 'Aurel' tab must be refactored into a class
-***  Receive ISR should use a timer to measure the length of pulses for higher temporal accuray
-***  Remove the test code in test tab
+* Serial protocol implementation for transmitting: receiving Pulse buffers from the serial and transmitting these
+* Code in the 'Aurel' tab must be refactored into a class
+* Receive ISR should use a timer to measure the length of pulses for higher temporal accuray
+* Remove the test code in test tab
