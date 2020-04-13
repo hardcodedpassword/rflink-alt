@@ -8,7 +8,7 @@
 
 #define MAX_PULSES        800
 #define MIN_PULSES        20
-#define MIN_PULSE_TIME    100   // us
+#define MIN_PULSE_TIME    90   // us - note that 100us is the shortest pulse the Aurel can reliably receive
 #define MAX_PULSE_TIME    2550  // us - max to fit in a byte
 #define PULSE_RESOLUTION  10    // us
 #define PULSE_RESOLUTION_ROUND_CORRECTION 5 // us
@@ -47,7 +47,7 @@ volatile bool _messageFlag = false;
 // Sending:
 // buffer with pulses to send
 // must be terminated with a zero value!
-byte  _sendBuf[MAX_PULSES+1]; // one byte extra for terminating 0.
+byte  _sendBuf[MAX_PULSES+3]; // bytes extra for terminating 0, repeats, and delay between repeats.
 volatile byte* _sendPtr;
 
 // ISR for receiving pulses
@@ -218,23 +218,19 @@ bool TxBusy()
 
 
 // Prepare transmit a sequence of pulses.
-void TX( byte* pulses, int repeats = 1, int delayTime = 0)
+void TX()
 {
+  int repeats = _sendBuf[0];
+  int delayTime = _sendBuf[1];
+  
   AurelRxToTX();
-
-  byte* buf = _sendBuf;
-  for ( byte *pulse = pulses; *pulse != 0; pulse++, buf++ )
-  {
-    *buf = *pulse;
-  }
-  *buf = 0;
 
   for ( int r = 0; r < repeats; r++ )
   {
     noInterrupts();
     TCNT1 = 0;
     OCR1A = 1000;  // compare match register to 500us when 1st pulse starts
-    _sendPtr = _sendBuf;
+    _sendPtr = _sendBuf+2; // first two bytes contain repeats and delaytime so skip these
     TX_LOW;
     TIMSK1 |= (1 << OCIE1A); // enable timer 1 interrupts
     interrupts();
