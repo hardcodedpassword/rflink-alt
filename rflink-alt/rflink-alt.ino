@@ -1,3 +1,5 @@
+#define RFLINK_ALT_VERSION "0.0.3" 
+
 // RFLink alt:
 //
 // Alternative firmware for the NODO RFLink.
@@ -5,13 +7,9 @@
 // Major goal: increased flexibility and open source
 //    the firmware will not support the RFLink Serial protocol.
 //    instead it will be a 'transparent' interface, sending received pulses to the host
-//    and the host send pulse buffers to RFLink-als to for transmission.
+//    and the host send pulse buffers to FLink-als to for transmission.
 //    This way the RFLink-alt needs know knowledge of any of the 433 protocols.
 //    Instead the Host can parse and assemble message.
-
-// When a message is received the RFLink-alt will echo on serial:
-
-//
 
 // Host interface description:
 // RfLink-Alt -> Host  starting with "i:" are informative messages
@@ -43,3 +41,5 @@
 //  - decreased MIN_PULSE_TIME from 100 to 90 us.
 //  - implemented interpreter for sending pulses
 //  - removed test code
+//  V0.0.3:  
+//  - Added version number, added code comments, some minor changes

@@ -20,6 +20,7 @@ void setup()
   // set aurel in receive mode
   AurelPwrdToRx();
   Serial.println( "i:RFLink-alt" );
+  Serial.print("i:"); Serial.println( RFLINK_ALT_VERSION );
   Serial.print( "i:Pulse timebase is "); Serial.print( PULSE_RESOLUTION ); Serial.println(" microseconds.");
 }
 
@@ -48,13 +49,11 @@ void loop()
         n = Serial.parseInt();
       }
       *ptr = 0; // terminating 0;
-      //PrintPulseBuffer( _sendBuf, nofPulses );
       TX();
-      Serial.print( "i:Transmitted " );              Serial.print( nofPulses -2 ); Serial.println(" pulses" );
-      Serial.print( "i:Repeats " );                  Serial.println( _sendBuf[0] );
-      Serial.print( "i:Delay between repeats " );    Serial.println( _sendBuf[1] );
+      Serial.print( "i:Transmitted: " );     Serial.print( nofPulses -2 ); Serial.println(" pulses" );
+      Serial.print( "i:Repeats: " );         Serial.println( _sendBuf[0] );
+      Serial.print( "i:Repeat delay: " );    Serial.print( _sendBuf[1] ); Serial.println(" ms" );
     }
-
 
     // check if a message has been received
     // and echo it to the host.
@@ -64,6 +63,5 @@ void loop()
     {
       PrintPulseBuffer( ptr, count );
     }
-
   }
 }

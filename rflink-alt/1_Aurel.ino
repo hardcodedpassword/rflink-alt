@@ -6,12 +6,13 @@
 //
 // TODO: need to convert this part to a class.
 
-#define MAX_PULSES        800
-#define MIN_PULSES        20
-#define MIN_PULSE_TIME    90   // us - note that 100us is the shortest pulse the Aurel can reliably receive
-#define MAX_PULSE_TIME    2550  // us - max to fit in a byte
+#define MAX_PULSES        800   // max nr of pulses for RX and TX
+#define MIN_PULSES        20    // received sequences of pulses with less than MIN_PULSES will be discarded
+#define MIN_PULSE_TIME    90    // us - datasheet specifies that 100us is the shortest pulse the Aurel can reliably receive
+                                // lowered to 90us to catch short signals else discarded
+#define MAX_PULSE_TIME    2550  // us - maximum allowed pulse time. Note: 2550us / 10us = max to fit in a byte
 #define PULSE_RESOLUTION  10    // us
-#define PULSE_RESOLUTION_ROUND_CORRECTION 5 // us
+#define PULSE_RESOLUTION_ROUND_CORRECTION 5 // us - used to compensate for integer rounding
 
 // Some macros to manipulate the transmit output
 #define TX_LOW    (*_TxReg &= ~_TxBit)
@@ -36,28 +37,38 @@ volatile byte* _TxReg;
 // 
 
 // Receiving:
-// two buffers for receiving data. Once a message is complete, the receiver ISR will switch to the other buffer.
+// two buffers for receiving data. Once a message is complete, 
+// the receiver ISR will switch to the other buffer and the main loop can process the received message.
+// 
 byte  _pulsebuf[2][MAX_PULSES]; // Pulse is either an 1 or a 0.
-byte* _dataRdy = _pulsebuf[0];
-byte* _dataRec = _pulsebuf[1];
-unsigned int _counter = 0;
-unsigned int _pulses = 0;
-volatile bool _messageFlag = false;
+byte* _dataRdy = _pulsebuf[0];  //  _dataRdy is the pointer used by the main loop
+byte* _dataRec = _pulsebuf[1];  // _dataRec is the pointer used by the ISR
+unsigned int _counter = 0;      // number of pulses in buffer pointed to by _dataRdy
+unsigned int _pulses = 0;       // pulse counter used by the ISR
+volatile bool _messageFlag = false; // flag to signal message received
 
 // Sending:
-// buffer with pulses to send
-// must be terminated with a zero value!
+// buffer with pulses to send. Must be terminated with a zero value!
+// _sendBuf[0] = number of times the pulse sequence needs to be repeated
+// _sendBuf[1] = delay between repeated pulse sequences
+// _sendBuf[2] = first HIGH pulse duration
+// _sendBuf[3] = subsequent LOW pulse duration
+// _sendBuf[4] = subsequent HIGH pulse duration
+// _sendBuf[5] = subsequent LOW pulse duration
+// _sendBuf[6] = subsequent HIGH pulse duration
+// ... and so on
+// _sendBuf[n] = 0 terminates the sequence.
 byte  _sendBuf[MAX_PULSES+3]; // bytes extra for terminating 0, repeats, and delay between repeats.
-volatile byte* _sendPtr;
+volatile byte* _sendPtr; // used by timer ISR
 
-// ISR for receiving pulses
+// ISR on DATA_RX for receiving pulses
 void AurelIntRx( void )
 {
   static unsigned long _lastTime = 0;
   const  unsigned long now = micros();  // TODO: use timer value capture on input change for higher accury
   const  unsigned long duration = now - _lastTime;
 
-  // first pulse must be a HIGH and long enough
+  // first pulse should be a HIGH and long enough
   if ( duration < MIN_PULSE_TIME )
   {
     _lastTime = now;
@@ -71,7 +82,6 @@ void AurelIntRx( void )
     if ( _counter > MIN_PULSES )
     {
       // there is some data, signal that it is available and switch buffers
-      // switch the buffers:
       byte* tmp = _dataRdy;
       _dataRdy = _dataRec;
       _dataRec = tmp;
@@ -85,7 +95,7 @@ void AurelIntRx( void )
     return;
   }
 
-  // valid pulse -> store
+  // valid pulse, lets store it
   byte d = ((duration + PULSE_RESOLUTION_ROUND_CORRECTION) / PULSE_RESOLUTION); // and compensate for integer rounding
   _dataRec[ _counter ] = d;
   _lastTime = now;
@@ -129,7 +139,8 @@ void AurelSetup( void )
   // and give the Aurel some time to become stable
   delayMicroseconds( 500 );
 
-  // Prepare Timer1 for transmission
+  // Prepare Timer1 for transmissions
+  // but do not activate it yet
   noInterrupts();
   TCCR1A = 0;
   TCCR1B = 0;
@@ -139,7 +150,6 @@ void AurelSetup( void )
 
   // set to prescaler 8
   // 1 tick equals 8 / 16Mhz = 0.0000005seconds = 0.0005ms = 0.5us
-  //
   TCCR1B &= ~(1 << CS12); // 0
   TCCR1B |=  (1 << CS11); // 1
   TCCR1B &= ~(1 << CS10); // 0
@@ -166,13 +176,22 @@ void AurelPwrdToRx( void )
   delayMicroseconds(200);
 }
 
+// Set Aurel from RX to TX mode
+// Preconditions:
+//   ENABLE = HIGH
+//   TX_RX = LOW
 void AurelRxToTX(void)
 {
   digitalWrite( DATA_RX, LOW );
-  digitalWrite(TX_RX, HIGH);
+  digitalWrite( TX_RX, HIGH );
+  // a 500 us wait is required for beginnning transmission as specified in the Aurel datasheet 
   // delayMicroseconds(500); This delay is handled in the TX function
 }
 
+// Set Aurel from TX to RX mode
+// Preconditions:
+//   ENABLE = HIGH
+//   TX_RX = HIGH
 void AurelTxToRX(void)
 {
   digitalWrite(TX_RX, LOW);
@@ -190,7 +209,8 @@ ISR( TIMER1_COMPA_vect)
   // prevent errors: check on null pointer
   if ( _sendPtr == 0 )
   {
-    TIMSK1 &= !(1 << OCIE1A); // disable timer interrupt
+    TIMSK1 &= ~(1 << OCIE1A); // disable timer interrupt
+    TX_LOW; // force low
     return;
   }
   int duration = *_sendPtr;
@@ -198,15 +218,16 @@ ISR( TIMER1_COMPA_vect)
   // check end of message
   if ( duration == 0 )
   {
-    TIMSK1 &= !(1 << OCIE1A); // disable timer interrupt
-    _sendPtr = 0;
-    TX_LOW; // force low
+    TIMSK1 &= ~(1 << OCIE1A); // disable timer interrupt
+     TX_LOW; // force low
+     _sendPtr = 0;
     return;
   }
 
-  // Flip pulse
+  // invert pulse, from high->low or low->high
   TX_FLIP;
-  OCR1A = duration * PULSE_RESOLUTION * 2;  // calculate pulse length
+  // program next timer interrupt to be the length of this pulse
+  OCR1A = duration * PULSE_RESOLUTION * 2;  // pulse length
   _sendPtr++;
 }
 
@@ -217,7 +238,12 @@ bool TxBusy()
 }
 
 
-// Prepare transmit a sequence of pulses.
+// Prepare transmision of a sequence of pulses.
+// Pulses are stored in _sendBuf and must be terminated with a zero value!
+// The first two bytes in this buffer have a special meaning
+//  _sendBuf[0] = number of times the sequence needs to be repeated [1..255]
+//  _sendBuf[1] = delay time between repeats (milliseconds) [0..255]
+// This is a blocking call.
 void TX()
 {
   int repeats = _sendBuf[0];
@@ -229,8 +255,8 @@ void TX()
   {
     noInterrupts();
     TCNT1 = 0;
-    OCR1A = 1000;  // compare match register to 500us when 1st pulse starts
-    _sendPtr = _sendBuf+2; // first two bytes contain repeats and delaytime so skip these
+    OCR1A = 1000;  // Compare match register to 500us when 1st pulse starts, this gives the Aurel time to switch to TX mode
+    _sendPtr = _sendBuf+2; // first two bytes contain repeats and delaytime so skip these, first pulse starts at _sendBuf[2]
     TX_LOW;
     TIMSK1 |= (1 << OCIE1A); // enable timer 1 interrupts
     interrupts();
@@ -240,11 +266,12 @@ void TX()
       delay(1);
     }
 
-    // no delay needed after last transmit
+    // Note: no delay needed after last transmit
     if ( r < (repeats - 1) )
     {
-      delay( delayTime );
+      delay( delayTime ); // milliseconds
     }
   }
+  
   AurelTxToRX();
 }
