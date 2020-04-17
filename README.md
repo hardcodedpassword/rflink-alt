@@ -2,10 +2,16 @@
 Alternative software for the rflink tranceiver (based on **Arduino Mega and the Aurel RTX MID 5V** "NODO shield")
 
 **Major goal**: increased flexibility and open source
-The firmware will not support the RFLink Serial protocol. Instead it will be a 'transparent' interface, sending received pulses to the host and the host send pulse buffers to RFLink-als to for transmission. This way the RFLink-alt needs know knowledge of any of the 433 protocols. Instead the Host can parse and assemble message.
+The firmware will not support the RFLink Serial protocol. Instead it will be a 'transparent' interface, sending received pulses to the host and the host can send pulse buffers to RFLink-alt to be transmitted. 
+By this design the RFLink-alt does not have knowledge of the various 433MHz protocols. It will be the responsibility of the host to parse received pulse sequences and construct pulse sequences that can be transmitted.
+Normally the host is a PC or raspberry platform that is much more capable of performing such tasks.
+This allows also easy capturing and retransmission of sequences and makes copying of remotes easy.
+
+The host interface is realized by the Arduino Mega its usb serial port interface. The commands and responses are human readable.
 
 ** RECEIVING: **
-RfLink-Alt -> Host  starting with "r:" are received pulses
+When the RFLink-alt has received a valid pulse sequence it will send the pulse sequence to the host.
+RfLink-Alt -> Host messages  starting with "r:" are received pulses:
 r:[number of pulses]:[pulse length],[pulse length],[pulse length],[pulse length],
 e.g.:
 "r:21:20,40,20,40,20,40,20,40,20,40,20,40,20,40,20,40,20,40,40,20,40"
