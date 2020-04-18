@@ -33,6 +33,7 @@ Changes:
 - decreased MIN_PULSE_TIME from 100 to 90 us.
 - implemented interpreter for sending pulses
 - removed test code
+
 V0.0.3:  
 - Added version number, added code comments, some minor changes
 - fixed receive bug
