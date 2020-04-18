@@ -8,8 +8,8 @@
 
 #define MAX_PULSES        800   // max nr of pulses for RX and TX
 #define MIN_PULSES        20    // received sequences of pulses with less than MIN_PULSES will be discarded
-#define MIN_PULSE_TIME    90    // us - datasheet specifies that 100us is the shortest pulse the Aurel can reliably receive
-                                // lowered to 90us to catch short signals else discarded
+#define MIN_PULSE_TIME    85    // us - datasheet specifies that 100us is the shortest pulse the Aurel can reliably receive
+                                // lowered to 85us to catch short signals else discarded
 #define MAX_PULSE_TIME    2550  // us - maximum allowed pulse time. Note: 2550us / 10us = max to fit in a byte
 #define PULSE_RESOLUTION  10    // us
 #define PULSE_RESOLUTION_ROUND_CORRECTION 5 // us - used to compensate for integer rounding
@@ -62,10 +62,14 @@ byte  _sendBuf[MAX_PULSES+3]; // bytes extra for terminating 0, repeats, and del
 volatile byte* _sendPtr; // used by timer ISR
 
 // ISR on DATA_RX for receiving pulses
+// Cannot use timer value capture on input change cause the RX is wired to pd4 on the 2560.
+// PD4 does not have time value capture function 
+// See datasheet atmel:https://ww1.microchip.com/downloads/en/devicedoc/atmel-2549-8-bit-avr-microcontroller-atmega640-1280-1281-2560-2561_datasheet.pdf
+// so we need to use the ugly micros() function.
 void AurelIntRx( void )
 {
   static unsigned long _lastTime = 0;
-  const  unsigned long now = micros();  // TODO: use timer value capture on input change for higher accury
+  const  unsigned long now = micros();  
   const  unsigned long duration = now - _lastTime;
 
   // first pulse should be a HIGH and long enough
@@ -244,7 +248,7 @@ bool TxBusy()
 //  _sendBuf[0] = number of times the sequence needs to be repeated [1..255]
 //  _sendBuf[1] = delay time between repeats (milliseconds) [0..255]
 // This is a blocking call.
-void TX()
+void TransmitPulseSequence()
 {
   int repeats = _sendBuf[0];
   int delayTime = _sendBuf[1];
