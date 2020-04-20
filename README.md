@@ -12,18 +12,18 @@ The host interface is realized by the Arduino Mega its usb serial port interface
 ** RECEIVING: **
 - When the RFLink-alt has received a valid pulse sequence it will send the pulse sequence to the host.
 - RfLink-Alt -> Host messages  starting with "r:" are received pulses:
--- r:[number of pulses]:[pulse length],[pulse length],[pulse length],[pulse length],
--- e.g.:
+- r:[number of pulses]:[pulse length],[pulse length],[pulse length],[pulse length],
+- e.g.:
 - "r:21:20,40,20,40,20,40,20,40,20,40,20,40,20,40,20,40,20,40,40,20,40\n"
 - All PUSLE LENGTHs are in units of 10us!!
 
 ** TRANSMITTING: **
 - Host -> RfLink-alt  starting with "t:" are pulses to transmit:
--- t:[number of repeats],[delay between repeats],[pulse length],pulse length],...
--- example pulses to send:
--- "t:10,40,35,35,70,70,35,35,70,35,35,70,70,35,70,70,35,70,35,70,70,35,35,70\n"
+- t:[number of repeats],[delay between repeats],[pulse length],[pulse length]
+- example pulses to send:
+- "t:10,40,35,35,70,70,35,35,70,35,35,70,70,35,70,70,35,70,35,70,70,35,35,70\n"
 - All PUSLE LENGTHs are in units of 10us !!
-- Do NOT use zeros !!
+- Do NOT use zeros (Serial.parseInt() limitation)!!
 
 TODOs:
 ***  Code in the 'Aurel' tab must be refactored into a class
