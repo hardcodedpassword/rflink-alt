@@ -14,7 +14,7 @@ The host interface is realized by the Arduino Mega its usb serial port interface
 - RfLink-Alt -> Host messages  starting with "r:" are received pulses:
 -- r:[number of pulses]:[pulse length],[pulse length],[pulse length],[pulse length],
 -- e.g.:
-- "r:21:20,40,20,40,20,40,20,40,20,40,20,40,20,40,20,40,20,40,40,20,40"
+- "r:21:20,40,20,40,20,40,20,40,20,40,20,40,20,40,20,40,20,40,40,20,40\n"
 - All PUSLE LENGTHs are in units of 10us!!
 
 ** TRANSMITTING: **
