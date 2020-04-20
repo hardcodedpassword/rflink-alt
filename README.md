@@ -21,7 +21,7 @@ All PUSLE LENGTHs are in units of 10us!!
 Host -> RfLink-alt  starting with "t:" are pulses to transmit:
 t:[number of repeats],[delay between repeats],[pulse length],pulse length],...
 example pulses to send:
-"t 10 40 35, 35,  70,  70,  35,  70,  35,  70,  35,  35,  70,  70,  35,  35,  70,  70,  35,  70,  35,  35,  70,  70,  35,  35,  70,  35,  70,  35,  70,  70,  35,  70,  35,  70,  35,  35,  70"
+"t:10,40,35,35,70,70,35,35,70,35,35,70,70,35,70,70,35,70,35,70,70,35,35,70\n"
 All PUSLE LENGTHs are in units of 10us !!
 Do NOT use zeros !!
 
