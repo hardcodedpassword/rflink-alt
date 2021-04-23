@@ -8,6 +8,7 @@ Normally the host is a PC or raspberry platform that is much more capable of per
 This allows also easy capturing and retransmission of sequences and makes copying of remotes easy.
 
 The host interface is realized by the Arduino Mega its usb serial port interface. The commands and responses are human readable.
+Note: the serial port baudrate must be set to 57600. 
 
 ** RECEIVING: **
 - When the RFLink-alt has received a valid pulse sequence it will send the pulse sequence to the host.
