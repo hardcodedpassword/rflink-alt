@@ -23,12 +23,13 @@ Note: the serial port baudrate must be set to 57600.
 - t:[number of repeats],[delay between repeats],[pulse length],[pulse length]
 - example pulses to send:
 - "t:10,40,35,35,70,70,35,35,70,35,35,70,70,35,70,70,35,70,35,70,70,35,35,70\n"
-- All PUSLE LENGTHs are in units of 10us !!
+- All PUSLE LENGTHs are in units of **10us**
+- The delay between repeats is in **milliseconds**
 - Do NOT use zeros (Serial.parseInt() limitation)!!
 
 TODOs:
 ***  Code in the 'Aurel' tab must be refactored into a class
-
+***  For consistency, the delay between repeats should be in same unit as the pulses.
 
 Changes:
 - decreased MIN_PULSE_TIME from 100 to 90 us.
