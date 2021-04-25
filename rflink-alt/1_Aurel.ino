@@ -4,13 +4,12 @@
 // Pulses are measured and specified in 0.010 ms i.e. units of 10us (see PULSE_RESOLUTION)
 // Note that the aurel is not capable of receiving MAX_PULSES < 100us and > 5000us
 //
-// TODO: need to convert this part to a class.
 
 #define MAX_PULSES        800   // max nr of pulses for RX and TX
-#define MIN_PULSES        20    // received sequences of pulses with less than MIN_PULSES will be discarded
+#define MIN_PULSES        15    // received sequences of pulses with less than MIN_PULSES will be discarded
 #define MIN_PULSE_TIME    85    // us - datasheet specifies that 100us is the shortest pulse the Aurel can reliably receive
                                 // lowered to 85us to catch short signals else discarded
-#define MAX_PULSE_TIME    2550  // us - maximum allowed pulse time. Note: 2550us / 10us = max to fit in a byte
+#define MAX_PULSE_TIME    6000  // us - maximum allowed pulse time.
 #define PULSE_RESOLUTION  10    // us
 #define PULSE_RESOLUTION_ROUND_CORRECTION 5 // us - used to compensate for integer rounding
 
@@ -20,16 +19,24 @@
 #define TX_FLIP   (*_TxReg ^=  _TxBit)
 #define TX_VALUE  (*_TxReg &   _TxBit)
 
+#define LED_ON    (*_LEDReg |=  _LEDBit)
+#define LED_OFF   (*_LEDReg &= ~_LEDBit)
+#define LED_FLIP  (*_LEDReg ^=  _LEDBit)
+
 // Macro to read the input
 #define RX_VALUE    (*RxReg & RxBit)
 
 // variables for direct in & output register access
+// this is safer and faster in an ISR then DigitalRead and DigitalWrite
 byte _RxBit;
 byte _RxPort;
 byte _TxBit;
 byte _TxPort;
+byte _LEDBit;
+byte _LEDPort;
 volatile byte* _RxReg;
 volatile byte* _TxReg;
+volatile byte* _LEDReg;
 
 // Pulse buffers:
 // A '1' pulse is always followed by a 0and a '0' pulse is followed by a 1 and so on.
@@ -40,9 +47,9 @@ volatile byte* _TxReg;
 // two buffers for receiving data. Once a message is complete, 
 // the receiver ISR will switch to the other buffer and the main loop can process the received message.
 // 
-byte  _pulsebuf[2][MAX_PULSES]; // Pulse is either an 1 or a 0.
-byte* _dataRdy = _pulsebuf[0];  //  _dataRdy is the pointer used by the main loop
-byte* _dataRec = _pulsebuf[1];  // _dataRec is the pointer used by the ISR
+short  _pulsebuf[2][MAX_PULSES]; // Pulse is either an 1 or a 0.
+short* _dataRdy = _pulsebuf[0];  //  _dataRdy is the pointer used by the main loop
+short* _dataRec = _pulsebuf[1];  // _dataRec is the pointer used by the ISR
 unsigned int _counter = 0;      // number of pulses in buffer pointed to by _dataRdy
 unsigned int _pulses = 0;       // pulse counter used by the ISR
 volatile bool _messageFlag = false; // flag to signal message received
@@ -58,8 +65,8 @@ volatile bool _messageFlag = false; // flag to signal message received
 // _sendBuf[6] = subsequent HIGH pulse duration
 // ... and so on
 // _sendBuf[n] = 0 terminates the sequence.
-byte  _sendBuf[MAX_PULSES+3]; // bytes extra for terminating 0, repeats, and delay between repeats.
-volatile byte* _sendPtr; // used by timer ISR
+short _sendBuf[MAX_PULSES+3]; // bytes extra for terminating 0, repeats, and delay between repeats.
+volatile short* _sendPtr; // used by timer ISR
 
 // ISR on DATA_RX for receiving pulses
 // Cannot use timer value capture on input change cause the RX is wired to pd4 on the 2560.
@@ -69,7 +76,7 @@ volatile byte* _sendPtr; // used by timer ISR
 void AurelIntRx( void )
 {
   static unsigned long _lastTime = 0;
-  const  unsigned long now = micros();  
+  const  unsigned long now = micros(); // can be safely used from within an ISR
   const  unsigned long duration = now - _lastTime;
 
   // first pulse should be a HIGH and long enough
@@ -86,11 +93,12 @@ void AurelIntRx( void )
     if ( _counter > MIN_PULSES )
     {
       // there is some data, signal that it is available and switch buffers
-      byte* tmp = _dataRdy;
+      short* tmp = _dataRdy;
       _dataRdy = _dataRec;
       _dataRec = tmp;
       _pulses = _counter;
       _messageFlag = true;
+      LED_FLIP;
     }
 
     // reset
@@ -100,14 +108,16 @@ void AurelIntRx( void )
   }
 
   // valid pulse, lets store it
-  byte d = ((duration + PULSE_RESOLUTION_ROUND_CORRECTION) / PULSE_RESOLUTION); // and compensate for integer rounding
+  short d = ((duration + PULSE_RESOLUTION_ROUND_CORRECTION) / PULSE_RESOLUTION); // and compensate for integer rounding
   _dataRec[ _counter ] = d;
   _lastTime = now;
   _counter++;
 }
 
+
 // returns true if a complete message is available
-bool IsMsgAvail( byte **p, unsigned int* count )
+// the *p argument will be set to the buffer containing the pulses
+bool IsMsgAvail( short **p, unsigned int* count )
 {
   bool msgAvail;
   noInterrupts();
@@ -120,6 +130,7 @@ bool IsMsgAvail( byte **p, unsigned int* count )
   return msgAvail;
 }
 
+
 // This function sets up the interace with the Aurel
 void AurelSetup( void )
 {
@@ -131,17 +142,24 @@ void AurelSetup( void )
   _TxPort = digitalPinToPort(DATA_TX);
   _TxReg =  portOutputRegister(_TxPort);
 
+  _LEDBit = digitalPinToBitMask(LED);
+  _LEDPort = digitalPinToPort(LED);
+  _LEDReg =  portOutputRegister(_LEDPort);  
+
   pinMode( ENABLE, OUTPUT );
   pinMode( TX_RX, OUTPUT );
   pinMode( DATA_RX, INPUT_PULLUP );
   pinMode( DATA_TX, OUTPUT );
-
+  pinMode( LED, OUTPUT);
+  
   digitalWrite( ENABLE, LOW );
   digitalWrite( TX_RX, LOW );
   digitalWrite( DATA_RX, LOW );
   digitalWrite( DATA_TX, LOW );
+  LED_ON;
   // and give the Aurel some time to become stable
   delayMicroseconds( 500 );
+  LED_OFF;
 
   // Prepare Timer1 for transmissions
   // but do not activate it yet
@@ -161,6 +179,7 @@ void AurelSetup( void )
 
   attachInterrupt( digitalPinToInterrupt(DATA_RX), AurelIntRx, CHANGE );
 }
+
 
 // Set Aurel to RX mode from PWRDN mode
 // Preconditions:
@@ -192,6 +211,7 @@ void AurelRxToTX(void)
   // delayMicroseconds(500); This delay is handled in the TX function
 }
 
+
 // Set Aurel from TX to RX mode
 // Preconditions:
 //   ENABLE = HIGH
@@ -206,6 +226,7 @@ void AurelTxToRX(void)
   digitalWrite( DATA_TX, LOW );
   delayMicroseconds(500);
 }
+
 
 // Timer1 interrupt routine used for sending with high time accuracy
 ISR( TIMER1_COMPA_vect)
@@ -223,8 +244,8 @@ ISR( TIMER1_COMPA_vect)
   if ( duration == 0 )
   {
     TIMSK1 &= ~(1 << OCIE1A); // disable timer interrupt
-     TX_LOW; // force low
-     _sendPtr = 0;
+    TX_LOW; // force low
+    _sendPtr = 0;
     return;
   }
 
@@ -235,18 +256,23 @@ ISR( TIMER1_COMPA_vect)
   _sendPtr++;
 }
 
+
 // returns true while transmission is ongoing
 bool TxBusy()
 {
-  return TIMSK1 & (1 << OCIE1A);
+  bool busy;
+  noInterrupts();
+  busy = TIMSK1 & (1 << OCIE1A);
+  interrupts();
+  return busy;
 }
 
 
 // Prepare transmision of a sequence of pulses.
 // Pulses are stored in _sendBuf and must be terminated with a zero value!
 // The first two bytes in this buffer have a special meaning
-//  _sendBuf[0] = number of times the sequence needs to be repeated [1..255]
-//  _sendBuf[1] = delay time between repeats (milliseconds) [0..255]
+//  _sendBuf[0] = number of times the sequence needs to be repeated [1..2^16]
+//  _sendBuf[1] = delay time between repeats (milliseconds) [0..2^16]
 // This is a blocking call.
 void TransmitPulseSequence()
 {

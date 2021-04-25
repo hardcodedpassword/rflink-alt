@@ -5,6 +5,7 @@
 #define TX_RX     15
 #define DATA_RX   19 // Digital data output of receiver Pin 9 -> RX
 #define ENABLE    22
+#define LED       LED_BUILTIN
 // unused:
 #define SDA 20
 #define SCL 21
