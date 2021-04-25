@@ -28,7 +28,6 @@ Note: the serial port baudrate must be set to 57600.
 - Do NOT use zeros (Serial.parseInt() limitation)!!
 
 TODOs:
-***  Code in the 'Aurel' tab must be refactored into a class
 ***  For consistency, the delay between repeats should be in same unit as the pulses.
 
 Changes:
@@ -40,3 +39,8 @@ V0.0.3:
 - Added version number, added code comments, some minor changes
 - fixed receive bug
 - decreased MIN_PULSE_TIME from 90 to 85 us
+
+V0.0.4:  
+- Minor improvement throughout the code
+- Allow to receive shorter messages, now 15 pulses will be accepted
+- Allow longer pulse times
