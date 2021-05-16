@@ -1,6 +1,9 @@
 # rflink-alt
 Alternative software for the rflink tranceiver (based on **Arduino Mega and the Aurel RTX MID 5V** "NODO shield")
 
+** Gateway software **
+Currently working on software providing the gateway functionality like managing devices. This will be written in Python so that it can run al all kind of platforms: raspberry / linux / mac / windows / whatever. Any help developing this will be highly appreciated! 
+
 **Major goal**: increased flexibility and open source
 The firmware will not support the RFLink Serial protocol. Instead it will be a 'transparent' interface, sending received pulses to the host and the host can send pulse buffers to RFLink-alt to be transmitted. 
 By this design the RFLink-alt does not have knowledge of the various 433MHz protocols. It will be the responsibility of the host to parse received pulse sequences and construct pulse sequences that can be transmitted.
